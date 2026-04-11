@@ -1,15 +1,12 @@
 const express = require('express')
 const router = express.Router()
-const { sql, poolPromise } = require('../config/db')
+const pool = require('../config/db')
 const authMiddleware = require('../middleware/auth')
 
 router.get('/', authMiddleware, async (req, res) => {
     try {
-        const pool = await poolPromise
-        const result = await pool.request()
-            .input('user_id', sql.Int, req.user.id)
-            .query('SELECT * FROM tasks WHERE user_id = @user_id')
-        res.json(result.recordset)
+        const [tasks] = await pool.query('SELECT * FROM tasks WHERE user_id = ?', [req.user.id])
+        res.json(tasks)
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message })
     }
@@ -17,20 +14,14 @@ router.get('/', authMiddleware, async (req, res) => {
 
 router.post('/', authMiddleware, async (req, res) => {
     const { title, description, priority, due } = req.body
-
     if (!title) {
         return res.status(400).json({ message: 'Title is required' })
     }
-
     try {
-        const pool = await poolPromise
-        await pool.request()
-            .input('user_id', sql.Int, req.user.id)
-            .input('title', sql.NVarChar, title)
-            .input('description', sql.NVarChar, description || '')
-            .input('priority', sql.NVarChar, priority || 'medium')
-            .input('due', sql.NVarChar, due || '')
-            .query('INSERT INTO tasks (user_id, title, description, priority, due) VALUES (@user_id, @title, @description, @priority, @due)')
+        await pool.query(
+            'INSERT INTO tasks (user_id, title, description, priority, due) VALUES (?, ?, ?, ?, ?)',
+            [req.user.id, title, description || '', priority || 'medium', due || '']
+        )
         res.status(201).json({ message: 'Task created' })
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message })
@@ -39,18 +30,11 @@ router.post('/', authMiddleware, async (req, res) => {
 
 router.put('/:id', authMiddleware, async (req, res) => {
     const { title, description, priority, due, done } = req.body
-
     try {
-        const pool = await poolPromise
-        await pool.request()
-            .input('id', sql.Int, req.params.id)
-            .input('user_id', sql.Int, req.user.id)
-            .input('title', sql.NVarChar, title)
-            .input('description', sql.NVarChar, description || '')
-            .input('priority', sql.NVarChar, priority || 'medium')
-            .input('due', sql.NVarChar, due || '')
-            .input('done', sql.Bit, done ? 1 : 0)
-            .query('UPDATE tasks SET title=@title, description=@description, priority=@priority, due=@due, done=@done WHERE id=@id AND user_id=@user_id')
+        await pool.query(
+            'UPDATE tasks SET title=?, description=?, priority=?, due=?, done=? WHERE id=? AND user_id=?',
+            [title, description || '', priority || 'medium', due || '', done ? 1 : 0, req.params.id, req.user.id]
+        )
         res.json({ message: 'Task updated' })
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message })
@@ -59,11 +43,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
-        const pool = await poolPromise
-        await pool.request()
-            .input('id', sql.Int, req.params.id)
-            .input('user_id', sql.Int, req.user.id)
-            .query('DELETE FROM tasks WHERE id=@id AND user_id=@user_id')
+        await pool.query(
+            'DELETE FROM tasks WHERE id=? AND user_id=?',
+            [req.params.id, req.user.id]
+        )
         res.json({ message: 'Task deleted' })
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err.message })

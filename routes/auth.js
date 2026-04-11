@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-const { sql, poolPromise } = require('../config/db')
+const pool = require('../config/db')
 require('dotenv').config()
 
 router.post('/register', async (req, res) => {
@@ -13,22 +13,16 @@ router.post('/register', async (req, res) => {
     }
 
     try {
-        const pool = await poolPromise
-        const existing = await pool.request()
-            .input('email', sql.NVarChar, email)
-            .query('SELECT * FROM users WHERE email = @email')
-
-        if (existing.recordset.length > 0) {
+        const [existing] = await pool.query('SELECT * FROM users WHERE email = ?', [email])
+        if (existing.length > 0) {
             return res.status(400).json({ message: 'Email already exists' })
         }
 
         const hashedPassword = await bcrypt.hash(password, 10)
-
-        await pool.request()
-            .input('username', sql.NVarChar, username)
-            .input('email', sql.NVarChar, email)
-            .input('password', sql.NVarChar, hashedPassword)
-            .query('INSERT INTO users (username, email, password) VALUES (@username, @email, @password)')
+        await pool.query(
+            'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+            [username, email, hashedPassword]
+        )
 
         res.status(201).json({ message: 'User registered successfully' })
     } catch (err) {
@@ -44,18 +38,13 @@ router.post('/login', async (req, res) => {
     }
 
     try {
-        const pool = await poolPromise
-        const result = await pool.request()
-            .input('email', sql.NVarChar, email)
-            .query('SELECT * FROM users WHERE email = @email')
-
-        if (result.recordset.length === 0) {
+        const [users] = await pool.query('SELECT * FROM users WHERE email = ?', [email])
+        if (users.length === 0) {
             return res.status(400).json({ message: 'Invalid credentials' })
         }
 
-        const user = result.recordset[0]
+        const user = users[0]
         const isMatch = await bcrypt.compare(password, user.password)
-
         if (!isMatch) {
             return res.status(400).json({ message: 'Invalid credentials' })
         }
