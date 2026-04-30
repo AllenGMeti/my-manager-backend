@@ -1,3 +1,5 @@
+// Importing required modules: Express for routing, bcrypt for password hashing,
+// JWT for token generation, and MySQL pool for database queries
 const express = require('express')
 const router = express.Router()
 const bcrypt = require('bcryptjs')
@@ -5,6 +7,8 @@ const jwt = require('jsonwebtoken')
 const pool = require('../config/db')
 require('dotenv').config()
 
+// Route for user registration: validates input, checks for existing email,
+// hashes password, inserts new user into database
 router.post('/register', async (req, res) => {
     const { username, email, password } = req.body
 
@@ -30,6 +34,8 @@ router.post('/register', async (req, res) => {
     }
 })
 
+// Route for user login: validates input, checks credentials,
+// verifying password, generates JWT token, returns token + username
 router.post('/login', async (req, res) => {
     const { email, password } = req.body
 
@@ -61,4 +67,5 @@ router.post('/login', async (req, res) => {
     }
 })
 
+// Exporting router so it can be mounted in the main server file
 module.exports = router

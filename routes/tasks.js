@@ -1,8 +1,11 @@
+// Importing required modules: Express for routing, MySQL pool for database queries,
+// and authentication middleware to protect routes
 const express = require('express')
 const router = express.Router()
 const pool = require('../config/db')
 const authMiddleware = require('../middleware/auth')
 
+// GET route: fetch all tasks belonging to the authenticated user
 router.get('/', authMiddleware, async (req, res) => {
     try {
         const [tasks] = await pool.query('SELECT * FROM tasks WHERE user_id = ?', [req.user.id])
@@ -12,6 +15,7 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 })
 
+// POST route: create a new task for the authenticated user
 router.post('/', authMiddleware, async (req, res) => {
     const { title, description, priority, due } = req.body
     if (!title) {
@@ -28,6 +32,7 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 })
 
+// PUT route: update an existing task belonging to the authenticated user
 router.put('/:id', authMiddleware, async (req, res) => {
     const { title, description, priority, due, done } = req.body
     try {
@@ -41,6 +46,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 })
 
+// DELETE route: remove a task belonging to the authenticated user
 router.delete('/:id', authMiddleware, async (req, res) => {
     try {
         await pool.query(
@@ -53,4 +59,5 @@ router.delete('/:id', authMiddleware, async (req, res) => {
     }
 })
 
+// Exporting router so it can be mounted in the main server file
 module.exports = router

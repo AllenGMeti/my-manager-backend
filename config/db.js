@@ -1,22 +1,26 @@
+// Importing required modules: mysql2 with promise support and dotenv for environment variables
 const mysql = require('mysql2/promise')
 require('dotenv').config()
 
+// Creating a connection pool using environment variables for configuration
 const pool = mysql.createPool({
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-    ssl: {
-        rejectUnauthorized: false
-    }
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  ssl: {
+    rejectUnauthorized: false
+  }
 })
 
+// Function to initialize the database: establishes connection and creates tables if missing
 async function initDB() {
-    try {
-        const conn = await pool.getConnection()
+  try {
+    const conn = await pool.getConnection()
 
-        await conn.query(`
+    // Create 'users' table with unique username and email, plus password and timestamp
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS users (
         id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(100) NOT NULL UNIQUE,
@@ -26,7 +30,8 @@ async function initDB() {
       )
     `)
 
-        await conn.query(`
+    // Creating 'tasks' table linked to 'users' table with foreign key, includes task details
+    await conn.query(`
       CREATE TABLE IF NOT EXISTS tasks (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
@@ -40,13 +45,17 @@ async function initDB() {
       )
     `)
 
-        conn.release()
-        console.log('Connected to MySQL database')
-    } catch (err) {
-        console.log('Database connection failed:', err.message)
-    }
+    // Releasing connection back to pool and confirm success
+    conn.release()
+    console.log('Connected to MySQL database')
+  } catch (err) {
+    // Handle and log connection or query errors
+    console.log('Database connection failed:', err.message)
+  }
 }
 
+// Running initialization immediately when file is loaded
 initDB()
 
+// Exporting the pool so other modules can query the database
 module.exports = pool
